@@ -1,0 +1,24 @@
+package models
+
+import "time"
+
+type User struct {
+	ID           string    `json:"id"`
+	FullName     string    `json:"full_name"`
+	Email        string    `json:"email"`
+	Phone        string    `json:"phone,omitempty"`
+	PasswordHash string    `json:"-"`
+	IsVerified   bool      `json:"is_verified"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+
+
+
+type RegisterRequest struct {
+	FullName string `json:"full_name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`   // Validates correct email format
+	Phone    string `json:"phone" binding:"omitempty,e164"`  // Validates phone number (E.164 format)
+	Password string `json:"password" binding:"required,min=8,max=50"` // Password complexity
+}

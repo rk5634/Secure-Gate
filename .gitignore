@@ -1,0 +1,44 @@
+# Binaries
+/server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Output of `go build`, `go test`, or other Go tools
+*.out
+*.test
+
+# Dependency directories (if any)
+vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Env files
+.env
+
+# Docker
+*.tar
+**/docker-compose.override.yml
+
+# Air (live reload tool)
+.air.toml
+tmp/
+
+# Postgres data (if running volume locally)
+postgres-data/
