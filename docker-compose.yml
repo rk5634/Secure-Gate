@@ -48,7 +48,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - .:/app
-    command: air
     depends_on:
       - db
       - migrate

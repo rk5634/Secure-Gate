@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8080
 
 # Default command (Air will handle rebuild & rerun)
-CMD ["air"]
+CMD ["air", "-c", ".air.toml"]
