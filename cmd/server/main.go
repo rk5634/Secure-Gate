@@ -27,7 +27,7 @@ func main() {
 
 	// Test route
 	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Auth System is up and running!"})
+		c.JSON(200, gin.H{"message": "Hi dev, Auth System is up and running!"})
 	})
 
 	repo := repository.NewUserRepository()
