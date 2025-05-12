@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-
 	"github.com/gin-gonic/gin"
 	"github.com/rkcuwork/auth-system/internal/config"
 	"github.com/rkcuwork/auth-system/internal/db"
@@ -35,6 +34,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 
 	r.POST("/signup", authHandler.Register)
+	r.POST("/login", authHandler.Login)
 
 	// Start server
 	log.Printf("Server is starting on port %s...\n", cfg.Port)

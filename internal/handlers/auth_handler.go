@@ -48,3 +48,35 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"message": "user registered successfully"})
 }
+
+
+
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req models.LoginRequest
+
+	// Bind and validate input
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Errorf("auth-system:internal:handlers:auth_handler:Login: Error binding JSON: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Construct internal User model
+	LoginData := &models.LoginRequest{
+		LoginEmail:     req.LoginEmail,
+		LoginPassword: req.LoginPassword, // will be hashed inside the service
+	}
+
+	LoginResponse,err := h.authService.Login(c.Request.Context(), LoginData)
+	if err != nil {
+		fmt.Errorf("auth-system:internal:handlers:auth_handler:Login: Error Logging user: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return 
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"data":    LoginResponse, // resp should be of type LoginResponse
+	})
+}

@@ -1,5 +1,8 @@
 package repository
 
+// GetUserByID(...)
+
+
 import (
 	"context"
 	"fmt"
@@ -7,6 +10,7 @@ import (
 
 	"github.com/rkcuwork/auth-system/internal/db"
 	"github.com/rkcuwork/auth-system/internal/models"
+
 )
 
 
@@ -63,3 +67,7 @@ func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 
 	return &user, nil
 }
+
+
+
+

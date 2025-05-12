@@ -27,12 +27,12 @@ type RegisterRequest struct {
 
 // LoginRequest represents login input
 type LoginRequest struct {
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required"`
+    LoginEmail    string `json:"email" validate:"required,email"`
+    LoginPassword string `json:"password" validate:"required"`
 }
 
 // LoginResponse represents login success output
 type LoginResponse struct {
     Token string `json:"token"`
-    User  User   `json:"user"`
+    UserID  string   `json:"userid"`
 }
