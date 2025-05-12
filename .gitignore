@@ -42,3 +42,6 @@ tmp/
 
 # Postgres data (if running volume locally)
 postgres-data/
+
+# Test data directory for tests that use it to store temporary files
+testdata/

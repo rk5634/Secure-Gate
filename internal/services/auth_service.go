@@ -10,9 +10,6 @@ import (
 	"github.com/rkcuwork/auth-system/internal/repository"
 )
 
-type UserService interface {
-	Register(ctx context.Context, input *models.User) error
-}
 
 type userService struct {
 	repo repository.UserRepository

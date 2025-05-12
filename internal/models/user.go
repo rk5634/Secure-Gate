@@ -22,3 +22,17 @@ type RegisterRequest struct {
 	Phone    string `json:"phone" binding:"omitempty,e164"`  // Validates phone number (E.164 format)
 	Password string `json:"password" binding:"required,min=8,max=50"` // Password complexity
 }
+
+
+
+// LoginRequest represents login input
+type LoginRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required"`
+}
+
+// LoginResponse represents login success output
+type LoginResponse struct {
+    Token string `json:"token"`
+    User  User   `json:"user"`
+}
