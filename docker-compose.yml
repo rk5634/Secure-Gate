@@ -51,10 +51,17 @@ services:
     depends_on:
       - db
       - migrate
+      # - redis
     env_file:
       - .env
     ports:
       - "8080:8080"
+
+  # redis:
+  #   image: redis:7
+  #   restart: always
+  #   ports:
+  #     - "6379:6379"
 
 volumes:
   postgres-data:

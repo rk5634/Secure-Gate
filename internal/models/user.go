@@ -33,6 +33,9 @@ type LoginRequest struct {
 
 // LoginResponse represents login success output
 type LoginResponse struct {
-    Token string `json:"token"`
+    AccessToken string `json:"accesstoken"`
+	RefreshToken string `json:"refreshtoken"`
     UserID  string   `json:"userid"`
+	Email string `json:"email"`
+	Role string `json:"role"`
 }

@@ -45,3 +45,7 @@ postgres-data/
 
 # Test data directory for tests that use it to store temporary files
 testdata/
+
+
+# Private Encryption Keys
+*.key

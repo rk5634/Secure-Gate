@@ -53,7 +53,7 @@ func (s *userService) Login(ctx context.Context, input *models.LoginRequest) (*m
 		return nil, fmt.Errorf("password does not match")
 	}
 
-	jwttoken,err := GenerateJWT(user.ID,user.Email)
+	accesstoken,refreshtoken,err := GenerateJWT(user)
 
 	if( err != nil) {
 		fmt.Printf("auth-system:internal:repository:user_repository:LoginUser: Error in generating JWT token: %v\n", err)
@@ -61,8 +61,11 @@ func (s *userService) Login(ctx context.Context, input *models.LoginRequest) (*m
 	}
 
 	res := &models.LoginResponse{
-		Token: jwttoken,
+		AccessToken:  accesstoken,
+		RefreshToken: refreshtoken,
 		UserID: user.ID,
+		Email: user.Email,
+		Role: "user",
 	}
 
 	return res,nil
