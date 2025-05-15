@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rkcuwork/auth-system/internal/config"
 	"github.com/rkcuwork/auth-system/internal/models"
+	"github.com/rkcuwork/auth-system/internal/redis"
 )
 
 // GenerateJWT(userID int, email string) (string, error)
@@ -68,11 +69,13 @@ func GenerateJWT(user *models.User) (accessToken string, refreshToken string, er
 	}
 
 	// Create refresh token (long-lived, minimal claims)
+	exp := time.Now().Add(7 * 24 * time.Hour)
+	jti := uuid.NewString()
 	refreshClaims := jwt.MapClaims{
 		"sub": user.ID,
-		"exp": now.Add(7 * 24 * time.Hour).Unix(), // 7 days
+		"exp": exp.Unix(), // 7 days
 		"iat": now.Unix(),
-		"jti": uuid.NewString(),
+		"jti": jti,
 	}
 
 	refresh := jwt.NewWithClaims(jwt.SigningMethodRS256, refreshClaims)
@@ -81,5 +84,13 @@ func GenerateJWT(user *models.User) (accessToken string, refreshToken string, er
 		fmt.Println("auth-system:internal:services:jwt_service:GenerateJWT: Error generating refresh token:", err)
 		return "", "", fmt.Errorf("signing refresh token failed: %w", err)
 	}
+
+	err = redis.RedisClient.Set("refresh_token:"+jti, user.ID, time.Until(exp))
+	if err != nil {
+		fmt.Println("auth-system:internal:services:jwt_service:GenerateJWT: Error storing refresh token in Redis:", err)
+		return "", "", fmt.Errorf("failed to store refresh token in Redis: %w", err)
+	}
+
+
 	return accessToken, refreshToken, nil
 }

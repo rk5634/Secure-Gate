@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rkcuwork/auth-system/internal/config"
 	"github.com/rkcuwork/auth-system/internal/db"
 	"github.com/rkcuwork/auth-system/internal/handlers"
+	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/services"
 )
@@ -20,6 +22,7 @@ func main() {
 
 	// Initialize DB connection
 	db.Init()
+	redis.Init()
 
 	// Set up Gin router
 	r := gin.Default()
