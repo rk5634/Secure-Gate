@@ -14,7 +14,7 @@ type AuthHandler struct {
 	authService services.UserService
 }
 
-func NewAuthHandler(authService services.UserService) *AuthHandler {
+func NewAuthHandler(authService services.UserService, ) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
@@ -42,11 +42,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	err := h.authService.Register(c.Request.Context(), user)
 	if err != nil {
 		fmt.Errorf("auth-system:internal:handlers:auth_handler:Register: Error registering user: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "user registered successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully. Please check your email to verify your account."})
 }
 
 

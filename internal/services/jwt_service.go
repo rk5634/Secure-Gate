@@ -22,18 +22,37 @@ import (
 // GenerateToken(user *User) (string, error)
 // ValidateToken(tokenString string) (*jwt.Token, error)
 
+
+// Load RSA public key for signing
+func LoadPublicKey() (*rsa.PublicKey, error) {
+	keyData, err := os.ReadFile("public.key")
+	if err != nil {
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPublicKey: Error reading public key file:", err)
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
+	if err != nil {
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPublicKey: Error parsing public key:", err)
+		return nil, fmt.Errorf("failed to parse RSA public key: %w", err)
+	}
+
+	return publicKey, nil
+}
+
+
 // Load RSA private key for signing
-func loadPrivateKey() (*rsa.PrivateKey, error) {
+func LoadPrivateKey() (*rsa.PrivateKey, error) {
 	
 	keyData, err := os.ReadFile("private.key")
 	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:loadPrivateKey: Error reading private key file:", err)
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPrivateKey: Error reading private key file:", err)
 		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
 	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:loadPrivateKey: Error loading private key:", err)
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPrivateKey: Error loading private key:", err)
 		return nil, fmt.Errorf("failed to parse RSA private key: %w", err)
 	}
 
@@ -44,7 +63,7 @@ func GenerateJWT(user *models.User) (accessToken string, refreshToken string, er
 	conf := config.LoadConfig()
 	now := time.Now()
 
-	signedkey, err := loadPrivateKey()
+	signedkey, err := LoadPrivateKey()
 	if err != nil {
 		fmt.Println("auth-system:internal:services:jwt_service:GenerateJWT: Error loading private key:", err)
 		return "", "", err
