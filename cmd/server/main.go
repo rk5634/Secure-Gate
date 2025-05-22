@@ -7,12 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rkcuwork/auth-system/internal/config"
 	"github.com/rkcuwork/auth-system/internal/db"
+	"github.com/rkcuwork/auth-system/internal/emailupdate"
+	"github.com/rkcuwork/auth-system/internal/emailverification"
 	"github.com/rkcuwork/auth-system/internal/handlers"
 	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/services"
-	"github.com/rkcuwork/auth-system/internal/emailverification"
-
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 
 	// Initialize DB connection
 	db.Init()
-	redis.Init()
+	redisclient := redis.Init()
 
 	// Set up Gin router
 	r := gin.Default()
@@ -50,17 +50,21 @@ func main() {
 	}
 	emailService := emailverification.NewService(emailRepo, tokenMgr, emailSender, cfg.BaseURL)
 	emailHandler := emailverification.NewHandler(emailService,repo)
-	
-	// Email verification route
-	r.GET("/verify-email", emailHandler.VerifyEmailHandler)
-	
-	
-	authService := services.NewUserService(repo, emailService)
+
+	tokenmanager := services.NewTokenManager(private_key,public_key,redisclient)
+	authService := services.NewUserService(repo, emailService,tokenmanager)
 	authHandler := handlers.NewAuthHandler(authService)
 
+	emailupdaterepo := emailupdate.NewRepository()
+	emailupdateservice := emailupdate.NewService(emailupdaterepo, emailService)
+	emailupdatehandler := emailupdate.NewHandler(emailupdateservice)
+	
+	r.GET("/verify-email", emailHandler.VerifyEmailHandler)
 	r.POST("/signup", authHandler.Register)
 	r.POST("/login", authHandler.Login)
-	r.POST("/resend-verification", emailHandler.SendVerificationEmailHandler)
+	r.POST("/resend-email-verification", emailHandler.SendVerificationEmailHandler)
+	r.PUT("/update-email", emailupdatehandler.UpdateEmailHandler)
+	r.POST("/refresh", authHandler.RefreshTokenHandler)
 	
 	
 	

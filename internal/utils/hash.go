@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,6 +27,28 @@ func CheckPasswordHash(password, hash string) bool {
 		return false
 	}
 	return true
+}
+
+
+
+func Hash(input string) string {
+    hasher := sha256.New()
+    hasher.Write([]byte(input))
+    hashBytes := hasher.Sum(nil)
+    return hex.EncodeToString(hashBytes)
+}
+
+
+// CheckHash compares input string with a given hash
+func MatchHash(input string, hash string) bool {
+    return Hash(input) == hash
+}
+
+
+
+// GenerateUUID generates a new random UUID v4 as a string.
+func GenerateUUID() string {
+    return uuid.New().String()
 }
 
 

@@ -9,7 +9,9 @@ import (
 
 type UserService interface {
 	Register(ctx context.Context, input *models.User) error
-	Login(ctx context.Context, input *models.LoginRequest) (*models.LoginResponse, error)
+	Login(ctx context.Context, input *models.LoginRequest,fp *models.Fingerprint) (*models.LoginResponse, error)
+	RefreshTokenService(ctx context.Context, input *models.NewAccessTokenRequest, fp *models.Fingerprint) (*models.NewAccessTokenResponse, error)
+	ValidateToken(token string) (jwt.MapClaims, error)
 }
 
 

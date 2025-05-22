@@ -2,6 +2,9 @@ package models
 
 import "time"
 
+
+
+
 type User struct {
 	ID           string    `json:"id"`
 	FullName     string    `json:"full_name"`
@@ -24,11 +27,18 @@ type RegisterRequest struct {
 }
 
 
+type Fingerprint struct{
+	UserAgent string `json:"useragent"` // User agent for tracking
+	IPAddress string `json:"ipaddress"` // IP address for tracking
+	AcceptLanguage string `json:"acceptlanguage"` // Accept language for tracking
+	AcceptEncoding string `json:"acceptencoding"` // Accept encoding for tracking	
+}
+
 
 // LoginRequest represents login input
 type LoginRequest struct {
     LoginEmail    string `json:"email" validate:"required,email"`
-    LoginPassword string `json:"password" validate:"required"`
+    LoginPassword string `json:"password" validate:"required"`	
 }
 
 // LoginResponse represents login success output
@@ -38,4 +48,17 @@ type LoginResponse struct {
     UserID  string   `json:"userid"`
 	Email string `json:"email"`
 	Role string `json:"role"`
+	DeviceID string `json:"deviceid"`
+}
+
+type NewAccessTokenRequest struct {
+	RefreshToken string `json:"refreshtoken" validate:"required"`
+	DeviceID string `json:"deviceid" validate:"required"`
+}
+
+
+
+type NewAccessTokenResponse struct{
+	AccessToken string `json:"accesstoken"`
+	RefreshToken string `json:"refreshtoken"`
 }

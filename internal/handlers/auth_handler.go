@@ -12,6 +12,7 @@ import (
 
 type AuthHandler struct {
 	authService services.UserService
+
 }
 
 func NewAuthHandler(authService services.UserService, ) *AuthHandler {
@@ -53,6 +54,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 
 func (h *AuthHandler) Login(c *gin.Context) {
+
+	// Check refresh token cookie
+    if cookie, err := c.Request.Cookie("refresh_token"); err == nil {
+        _, err := h.authService.ValidateToken(cookie.Value)
+        if err == nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "User already logged in"})
+            return
+        }
+    }
+
+
+
+
 	var req models.LoginRequest
 
 	// Bind and validate input
@@ -66,17 +80,104 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	LoginData := &models.LoginRequest{
 		LoginEmail:     req.LoginEmail,
 		LoginPassword: req.LoginPassword, // will be hashed inside the service
+		
 	}
 
-	LoginResponse,err := h.authService.Login(c.Request.Context(), LoginData)
+	fp := &models.Fingerprint{
+		UserAgent:      c.Request.UserAgent(),
+		IPAddress:      c.ClientIP(),
+		AcceptLanguage: c.GetHeader("Accept-Language"),
+		AcceptEncoding: c.GetHeader("Accept-Encoding"),
+	}
+
+	fmt.Printf("user-agent: %s\n", fp.UserAgent)
+
+	LoginResponse,err := h.authService.Login(c.Request.Context(), LoginData,fp)
 	if err != nil {
 		fmt.Errorf("auth-system:internal:handlers:auth_handler:Login: Error Logging user: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return 
 	}
 
+
+	// Set refresh token in secure HTTP-only cookie
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    LoginResponse.RefreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // set to false in local development if needed (not recommended)
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days
+	})
+
+
+	// Send only relevant data (no refresh token) in response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"data":    LoginResponse, // resp should be of type LoginResponse
+		"data": gin.H{
+			"accesstoken": LoginResponse.AccessToken,
+			"userid":      LoginResponse.UserID,
+			"email":       LoginResponse.Email,
+			"role":        LoginResponse.Role,
+			"deviceid":    LoginResponse.DeviceID,
+		},
 	})
 }
+
+
+
+func (h *AuthHandler) RefreshTokenHandler(c *gin.Context) {
+	
+    // 1. Get refresh token from cookie
+    refreshToken, err := c.Cookie("refresh_token")
+    if err != nil || refreshToken == ""{
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token missing"})
+        return
+    }
+	
+	deviceID := c.GetHeader("X-Device-ID")
+	if deviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "device ID missing"})
+		return
+	}
+
+	newtokenreqdata := &models.NewAccessTokenRequest{
+		RefreshToken: refreshToken,
+		DeviceID: deviceID,
+		
+	}
+
+	fp := &models.Fingerprint{
+		UserAgent: c.Request.UserAgent(), 
+		IPAddress: c.ClientIP(), 
+		AcceptLanguage: c.GetHeader("Accept-Language"), 
+		AcceptEncoding: c.GetHeader("Accept-Encoding"), 
+	}
+
+    res,err := h.authService.RefreshTokenService(c.Request.Context(),newtokenreqdata,fp)
+
+	if err != nil {
+		fmt.Printf("auth-system:internal:handlers:auth_handler:RefreshTokenHandler: Error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return 
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // set to false in local development if needed (not recommended)
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "New access token issued successfully.",
+		"data":    res, 
+	})
+
+}
+
+

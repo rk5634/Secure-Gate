@@ -10,6 +10,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/rkcuwork/auth-system/internal/repository"
+
+	
 )
 
 type TokenManager struct {
@@ -28,7 +30,7 @@ func NewTokenManager(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) *Toke
 func (tm *TokenManager) GenerateVerificationToken(userID string) (string, error) {
 	fmt.Printf("auth-system:internal:emailverification:ev_token:GenerateVerificationToken: Generating verification token for user %s\n", userID)
 	now := time.Now()
-	expiration := now.Add(1 * time.Second)
+	expiration := now.Add(15 * time.Minute) // Token valid for 15 minutes
 
 	signedkey  := tm.privateKey
 	if signedkey == nil {
