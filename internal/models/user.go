@@ -62,3 +62,9 @@ type NewAccessTokenResponse struct{
 	AccessToken string `json:"accesstoken"`
 	RefreshToken string `json:"refreshtoken"`
 }
+
+
+type LogoutRequest struct {
+	AccessToken string `json:"accesstoken"`
+	RefreshToken string `json:"refreshtoken"`
+}

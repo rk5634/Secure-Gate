@@ -49,3 +49,6 @@ testdata/
 
 # Private Encryption Keys
 *.key
+
+# Notes
+notes/

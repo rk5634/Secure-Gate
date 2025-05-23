@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -179,5 +180,60 @@ func (h *AuthHandler) RefreshTokenHandler(c *gin.Context) {
 	})
 
 }
+
+
+
+
+func (h *AuthHandler) LogoutHandler(c *gin.Context) {
+	// Get access token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "access token missing"})
+		return
+	}
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	// Get refresh token from cookie
+    refreshToken, err := c.Cookie("refresh_token")
+    if err != nil || refreshToken == ""{
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token missing"})
+        return
+    }
+
+	req := &models.LogoutRequest{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+
+	// Parse JWT to get jti and sub
+	err = h.authService.Logout(req)
+	if err != nil {
+		fmt.Printf("auth-system:internal:handlers:auth_handler:LogoutHandler: Error Logging out user: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	
+
+
+
+
+	// 5. Clear refresh token cookie
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false, // change to true in production
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// 6. Return response
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logout successful",
+	})
+}
+
+
 
 

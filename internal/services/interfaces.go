@@ -12,6 +12,7 @@ type UserService interface {
 	Login(ctx context.Context, input *models.LoginRequest,fp *models.Fingerprint) (*models.LoginResponse, error)
 	RefreshTokenService(ctx context.Context, input *models.NewAccessTokenRequest, fp *models.Fingerprint) (*models.NewAccessTokenResponse, error)
 	ValidateToken(token string) (jwt.MapClaims, error)
+	Logout(req *models.LogoutRequest) (err error)
 }
 
 

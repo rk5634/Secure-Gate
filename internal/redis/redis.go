@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -101,7 +102,7 @@ func (r *RedisClient) VerifyRefreshTokenJTI(jti string, tokenUserID string) erro
 
 
 // Delete removes a key from Redis
-func (r *RedisClient) Delete(key string) error {
+func (r *RedisClient) DeleteKey(key string) error {
 	err := r.client.Del(r.ctx, key).Err()
 	if err != nil {
 		log.Printf("auth-system:internal:redis:redis:Delete: failed to delete key '%s': %v", key, err)
@@ -111,6 +112,73 @@ func (r *RedisClient) Delete(key string) error {
 	log.Printf("key '%s' deleted successfully", key)
 	return nil
 }
+
+
+func (r *RedisClient) BlocklistTokenJTI(jti string, ttl time.Duration, userID string, reason string) error {
+	if jti == "" {
+		return errors.New("jti cannot be empty")
+	}
+
+	key := "blocklist:" + jti
+	value := fmt.Sprintf("user:%s reason:%s", userID, reason)
+
+	err := r.client.Set(r.ctx, key, value, ttl).Err()
+	if err != nil {
+		log.Printf("auth-system:internal:redis:redis:BlocklistTokenJTI: failed to blocklist jti '%s': %v", jti, err)
+		return fmt.Errorf("failed to blocklist token jti '%s': %w", jti, err)
+	}
+
+	log.Printf("auth-system:internal:redis:redis:BlocklistTokenJTI: jti '%s' blocklisted (%s)", jti, reason)
+	return nil
+}
+
+
+func (r *RedisClient) VerifyAccessTokenJTINotBlacklisted(jti string) error {
+	if jti == "" {
+		return errors.New("jti cannot be empty")
+	}
+
+	key := "blocklist:" + jti
+
+	exists, err := r.client.Exists(r.ctx, key).Result()
+	if err != nil {
+		log.Printf("auth-system:redis:VerifyAccessTokenNotBlacklisted: error checking key '%s': %v", key, err)
+		return fmt.Errorf("error verifying token blocklist status: %w", err)
+	}
+
+	if exists > 0 {
+		log.Printf("auth-system:redis:VerifyAccessTokenNotBlacklisted: token with jti '%s' is blocklisted", jti)
+		return errors.New("access token has been revoked")
+	}
+
+	return nil
+}
+
+
+func (r *RedisClient) RemoveRefreshTokenJTI(userID string) error {
+	if userID == ""{
+		return errors.New("userID and jti must not be empty")
+	}
+
+	key := fmt.Sprintf("refresh:%s",userID)
+	err := r.DeleteKey(key)
+	if err != nil {
+		log.Printf("auth-system:redis:RemoveRefreshTokenJTI: failed to delete key '%s': %v", key, err)
+		return fmt.Errorf("failed to delete refresh token jti from redis: %w", err)
+	}
+
+	log.Printf("auth-system:redis:RemoveRefreshTokenJTI: successfully deleted refresh token jti for user '%s'", userID)
+	return nil
+}
+
+
+
+
+
+
+
+
+
 
 
 

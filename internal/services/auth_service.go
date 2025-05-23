@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -113,7 +114,7 @@ func (s *userService) RefreshTokenService(ctx context.Context, input *models.New
 	// 	return nil, fmt.Errorf("Error occured Relogin")
 	// }
 	if isvalid {
-		s.tokenmanager.Redisclient.Delete("refresh_token:" + userid)
+		s.tokenmanager.Redisclient.DeleteKey("refresh_token:" + userid)
 		user, err := s.repo.GetUserByID(ctx, userid)
 		if err != nil {
 			fmt.Printf("auth-system:internal:services:auth_service:RefreshTokenService: Error in fetching user: %v\n", err)
@@ -135,7 +136,7 @@ func (s *userService) RefreshTokenService(ctx context.Context, input *models.New
 
 	}
 	if !isvalid && userid != "" {
-		s.tokenmanager.Redisclient.Delete("refresh_token:" + userid)
+		s.tokenmanager.Redisclient.DeleteKey("refresh_token:" + userid)
 		return nil, err
 	}
 
@@ -147,4 +148,48 @@ func (s *userService) RefreshTokenService(ctx context.Context, input *models.New
 
 func (s *userService) ValidateToken(token string) (jwt.MapClaims, error) {
 	return s.tokenmanager.ParseAndValidateToken(token)
+}
+
+
+func (s *userService) Logout(req *models.LogoutRequest) (err error) {
+
+	isvalid,claims, err := s.tokenmanager.IsValidAccessToken(req.AccessToken)
+	if !isvalid {
+		fmt.Printf("auth-system:internal:services:auth_service:Logout: Failed validating token: %v\n", err)
+		return fmt.Errorf("Token validation failed")
+	}
+	if err!=nil {
+		fmt.Printf("auth-system:internal:services:auth_service:Logout: Error in validating token: %v\n", err)
+		return fmt.Errorf("Error occured Relogin")
+	}
+
+	user, err := s.repo.GetUserByID(context.Background(), claims["sub"].(string))
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:Logout: Error in fetching user: %v\n", err)
+		return err
+	}
+
+	err = s.tokenmanager.Redisclient.RemoveRefreshTokenJTI(user.ID)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:Logout: Error in removing refresh token jti from redis: %v\n", err)
+		return err
+	}
+
+	expirationTime, err := claims.GetExpirationTime()
+	if err != nil {
+		// Handle the error appropriately
+		return err
+	}
+
+	ttl := time.Until(expirationTime.Time)
+
+	// Blacklist the access token using jti
+	err = s.tokenmanager.Redisclient.BlocklistTokenJTI(claims["jti"].(string),ttl,user.ID, "Logout")
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:Logout: Error in blocklisting token jti: %v\n", err)
+		return err
+	}
+
+	return nil
+
 }

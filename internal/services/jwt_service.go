@@ -14,6 +14,7 @@ import (
 	"github.com/rkcuwork/auth-system/internal/models"
 	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/utils"
+
 )
 
 // GenerateJWT(userID int, email string) (string, error)
@@ -183,7 +184,7 @@ func (tm *TokenManager) ParseAndValidateToken(tokenStr string) (jwt.MapClaims, e
 
 
 
-func (tm *TokenManager) IsValidRefreshTokenRequest(req *models.NewAccessTokenRequest, fp *models.Fingerprint ) (bool,string, error){
+func (tm *TokenManager) IsValidRefreshTokenRequest(req *models.NewAccessTokenRequest, fp *models.Fingerprint ) (isvalid bool, userid string, err error){
 	refreshtoken := req.RefreshToken
 	deviceid := req.DeviceID
 
@@ -229,3 +230,52 @@ func (tm *TokenManager) IsValidRefreshTokenRequest(req *models.NewAccessTokenReq
 	return true,userid,nil
 
 }
+
+
+
+
+func (tm *TokenManager) IsValidAccessToken(accesstoken string) (isvalid bool, claims jwt.MapClaims, err error) {
+	// 1. Parse and validate the JWT token
+	claims, err = tm.ParseAndValidateToken(accesstoken)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error parsing access token: %v\n", err)
+		return false, nil, fmt.Errorf("failed to parse access token: %w", err)
+	}
+
+	exp, ok := claims["exp"].(float64)
+	if !ok || int64(exp) < time.Now().Unix() {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error: token expired\n")
+		return false, claims, errors.New("token is expired")
+	}
+	
+	// 2. Extract user ID (sub)
+	userID, ok := claims["sub"].(string)
+	if !ok || userID == "" {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error: invalid user ID\n")
+		return false, claims, errors.New("invalid user ID")
+	}
+
+	// 3. Extract token ID (jti)
+	jti, ok := claims["jti"].(string)
+	if !ok || jti == "" {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error: invalid jti\n")
+		return false, claims, errors.New("invalid jti")
+	}
+
+	// 4. Check token type
+	if tokenType, ok := claims["type"].(string); !ok || tokenType != "access" {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error: invalid token type\n")
+		return false, claims, errors.New("invalid token type")
+	}
+
+	// 5. Check if token is blacklisted (in Redis)
+	err = tm.Redisclient.VerifyAccessTokenJTINotBlacklisted(jti)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:jwt_service:IsValidAccessTokenRequest: Error: token is blacklisted\n")
+		return false, claims, errors.New("token is blacklisted or revoked")
+	}
+
+
+	return true, claims, nil
+}
+
