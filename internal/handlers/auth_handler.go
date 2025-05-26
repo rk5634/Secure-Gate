@@ -32,14 +32,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Construct internal User model
 	user := &models.User{
-		FullName:     req.FullName,
-		Email:        req.Email,
-		Phone:        req.Phone,
-		PasswordHash: req.Password, // will be hashed inside the service
-		IsVerified:   false,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		FullName:        req.FullName,
+		Email:           req.Email,
+		Phone:           req.Phone,
+		PasswordHash:    req.Password, // will be hashed inside the service
+		IsEmailVerified: false,
+		IsPhoneVerified: false,
+		TokenVersion:    0,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
+
 
 	err := h.authService.Register(c.Request.Context(), user)
 	if err != nil {
@@ -213,10 +216,6 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 		return
 	}
 	
-
-
-
-
 	// 5. Clear refresh token cookie
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "refresh_token",
@@ -233,6 +232,66 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 		"message": "Logout successful",
 	})
 }
+
+
+
+
+
+
+
+
+func (h *AuthHandler) ForgotPasswordHandler(c *gin.Context) {
+	var req *models.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	err := h.authService.ForgotPasswordService(req)
+	if err != nil {
+		fmt.Printf("auth-system:internal:handlers:auth_handler:ForgotPasswordHandler: Error in sending reset link: %v\n", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "If the email is registered, a reset link has been sent."})
+}
+
+
+
+
+
+
+
+
+func (h *AuthHandler) ResetPasswordHandler(c *gin.Context) {
+	fmt.Printf("Inside ResetPasswordHandler\n")
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing token"})
+		return
+	}
+
+	fmt.Printf("token: %s\n", token)
+	
+	
+	var req models.ResetPasswordRequest
+	req.Token = token
+	if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
+
+	fmt.Printf("binded json: %v\n", req)
+
+	err := h.authService.ResetPasswordService(req)
+	if err != nil {
+		fmt.Printf("auth-system:internal:handlers:auth_handler:ResetPasswordHandler: Error in resetting password: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully"})
+}
+
 
 
 

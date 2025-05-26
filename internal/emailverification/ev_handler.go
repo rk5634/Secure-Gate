@@ -49,7 +49,7 @@ func (h *Handler) SendVerificationEmailHandler(c *gin.Context) {
 
 	user, err := (h.repo).GetUserByEmail(c.Request.Context(), req.Email)
 
-	if(user.IsVerified){
+	if(user.IsEmailVerified) {
 		c.JSON(http.StatusOK, gin.H{"message": "Email already verified"})
 		return
 	}

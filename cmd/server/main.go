@@ -37,7 +37,7 @@ func main() {
 	repo := repository.NewUserRepository()
 	privateKey, _ := services.LoadPrivateKey()
 	publicKey, _ := services.LoadPublicKey()
-	tokenManager := services.NewTokenManager(privateKey, publicKey, redisclient)
+	tokenManager := services.NewTokenManager(privateKey, publicKey, redisclient,repo)
 
 	emailRepo := emailverification.NewRepository()
 	emailTokenMgr := emailverification.NewTokenManager(privateKey, publicKey)
@@ -63,6 +63,8 @@ func main() {
 	r.PUT("/update-email", emailUpdateHandler.UpdateEmailHandler)
 	r.POST("/refresh", authHandler.RefreshTokenHandler)
 	r.POST("/logout", authHandler.LogoutHandler)
+	r.POST("/forgot-password", authHandler.ForgotPasswordHandler)
+	r.POST("/reset-password", authHandler.ResetPasswordHandler)
 
 	// ✅ Protected routes using AuthMiddleware
 	protected := r.Group("/api")

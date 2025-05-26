@@ -74,7 +74,7 @@ func (s *userService) Login(ctx context.Context, input *models.LoginRequest, fp 
 		return nil, fmt.Errorf("email not found")
 	}
 
-	if !user.IsVerified {
+	if !user.IsEmailVerified {
 		fmt.Printf("auth-system:internal:services:auth_service:Login: User is not verified\n")
 		return nil, fmt.Errorf("user is not verified")
 	}
@@ -192,4 +192,66 @@ func (s *userService) Logout(req *models.LogoutRequest) (err error) {
 
 	return nil
 
+}
+
+
+
+
+
+func (s *userService) ForgotPasswordService(req *models.ForgotPasswordRequest) (err error) {
+	user, err := s.repo.GetUserByEmail(context.Background(),req.Email)
+
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ForgotPasswordService: Error in getting user by email: %v\n", err)
+		return fmt.Errorf("email not found")
+	}
+
+	// Generate a password reset token
+	token, err := s.tokenmanager.GeneratePasswordResetToken(user.ID)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ForgotPasswordService: Error in generating password reset token: %v\n", err)
+		return fmt.Errorf("error generating password reset token")
+	}
+
+
+	// Send the password reset email
+	err = s.emailservice.SendResetPasswordLink(context.Background(), user.Email, token)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ForgotPasswordService: Error in sending password reset email: %v\n", err)
+		return fmt.Errorf("error sending password reset email")
+	}
+
+
+	fmt.Printf("auth-system:internal:services:auth_service:ForgotPasswordService: Password reset email sent to %s\n", user.Email)
+	return nil
+
+}
+
+
+
+
+
+func (s *userService) ResetPasswordService(req models.ResetPasswordRequest) (err error){
+	userID, err := s.tokenmanager.VerifyResetToken(req.Token)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ResetPasswordService: Error in parsing password reset token: %v\n", err)
+		return fmt.Errorf("invalid or expired token")
+	}
+
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ResetPasswordService: Error in hashing password: %v\n", err)
+		return fmt.Errorf("error hashing password")
+	}
+
+	err = s.repo.UpdatePassword(userID, hashedPassword)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:auth_service:ResetPasswordService: Error in updating password: %v\n", err)
+		return fmt.Errorf("error updating password")
+	}
+
+	
+
+	fmt.Printf("auth-system:internal:services:auth_service:ResetPasswordService: Password reset successfully for user ID %s\n", userID)
+	return nil
 }

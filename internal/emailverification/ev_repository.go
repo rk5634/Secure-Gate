@@ -16,7 +16,7 @@ func NewRepository() *Repository {
 
 func (r *Repository) MarkUserVerified(ctx context.Context, userID string) error {
 	commandTag, err := db.Pool.Exec(ctx,
-		"UPDATE users SET is_verified = TRUE WHERE id = $1", userID)
+		"UPDATE users SET is_email_verified = TRUE WHERE id = $1", userID)
 	if err != nil {
 		// Log the error
 		fmt.Printf("auth-system:internal:emailverification:ev_repository:MarkUserVerified: Error in updating user verification status: %v\n", err)

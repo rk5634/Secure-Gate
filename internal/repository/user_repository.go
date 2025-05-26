@@ -1,8 +1,5 @@
 package repository
 
-// GetUserByID(...)
-
-
 import (
 	"context"
 	"fmt"
@@ -11,11 +8,7 @@ import (
 	"github.com/rkcuwork/auth-system/internal/db"
 	"github.com/rkcuwork/auth-system/internal/models"
 	"github.com/jackc/pgx/v5"
-	
-
 )
-
-
 
 type userRepo struct{}
 
@@ -25,8 +18,8 @@ func NewUserRepository() UserRepository {
 
 func (r *userRepo) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (full_name, email, phone, password_hash, is_verified, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (full_name, email, phone, password_hash, is_email_verified, is_phone_verified, token_version, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	now := time.Now()
 	user.CreatedAt = now
@@ -37,19 +30,24 @@ func (r *userRepo) CreateUser(ctx context.Context, user *models.User) error {
 		user.Email,
 		user.Phone,
 		user.PasswordHash,
-		user.IsVerified,
+		user.IsEmailVerified,
+		user.IsPhoneVerified,
+		user.TokenVersion,
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
 	if err != nil {
 		fmt.Printf("auth-system:internal:repository:user_repository:CreateUser: Error in creating user: %v\n", err)
 	}
-	
+
 	return err
 }
 
 func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	query := `SELECT id, full_name, email, phone, password_hash, is_verified, created_at, updated_at FROM users WHERE email=$1`
+	query := `
+		SELECT id, full_name, email, phone, password_hash, is_email_verified, is_phone_verified, token_version, created_at, updated_at
+		FROM users WHERE email=$1
+	`
 	row := db.Pool.QueryRow(ctx, query, email)
 
 	var user models.User
@@ -59,7 +57,9 @@ func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 		&user.Email,
 		&user.Phone,
 		&user.PasswordHash,
-		&user.IsVerified,
+		&user.IsEmailVerified,
+		&user.IsPhoneVerified,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -71,10 +71,11 @@ func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*models.Us
 	return &user, nil
 }
 
-
-
 func (r *userRepo) GetUserByID(ctx context.Context, id string) (*models.User, error) {
-	query := `SELECT id, full_name, email, phone, password_hash, is_verified, created_at, updated_at FROM users WHERE id=$1`
+	query := `
+		SELECT id, full_name, email, phone, password_hash, is_email_verified, is_phone_verified, token_version, created_at, updated_at
+		FROM users WHERE id=$1
+	`
 	row := db.Pool.QueryRow(ctx, query, id)
 
 	var user models.User
@@ -84,7 +85,9 @@ func (r *userRepo) GetUserByID(ctx context.Context, id string) (*models.User, er
 		&user.Email,
 		&user.Phone,
 		&user.PasswordHash,
-		&user.IsVerified,
+		&user.IsEmailVerified,
+		&user.IsPhoneVerified,
+		&user.TokenVersion,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -101,7 +104,45 @@ func (r *userRepo) GetUserByID(ctx context.Context, id string) (*models.User, er
 	return &user, nil
 }
 
+func (r *userRepo) UpdatePassword(userid string, newpassword string) (err error) {
+	query := `UPDATE users SET password_hash=$1, updated_at=$2 WHERE id=$3`
+	_, err = db.Pool.Exec(context.Background(), query, newpassword, time.Now(), userid)
+	if err != nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:UpdatePassword: Error updating password: %v\n", err)
+		return err
+	}
+
+	err = r.InvalidateAllTokensByID(userid)
+
+	if err != nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:UpdatePassword: Error invalidating tokens after password update: %v\n", err)
+		return err
+	}
+	fmt.Printf("auth-system:internal:repository:user_repository:UpdatePassword: Password updated and tokens invalidated for user ID %s\n", userid)
+	return nil
+}
 
 
 
+func (r *userRepo) GetTokenVersionByID(id string) (int, error) {
+	query := `SELECT token_version FROM users WHERE id=$1`
+	var tokenVersion int
+	err := db.Pool.QueryRow(context.Background(), query, id).Scan(&tokenVersion)
+	if err != nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:GetTokenVersionByID: Error fetching token version for user ID %s: %v\n", id, err)
+		return -1, err
+	}
+	return tokenVersion, nil
+}
+
+
+func (r *userRepo) InvalidateAllTokensByID(id string) error {
+	query := `UPDATE users SET token_version = token_version + 1 WHERE id = $1`
+	_, err := db.Pool.Exec(context.Background(), query, id)
+	if err != nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:InvalidateAllTokensByID: Error incrementing token version for user ID %s: %v\n", id, err)
+		return err
+	}
+	return nil
+}
 

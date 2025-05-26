@@ -6,15 +6,18 @@ import "time"
 
 
 type User struct {
-	ID           string    `json:"id"`
-	FullName     string    `json:"full_name"`
-	Email        string    `json:"email"`
-	Phone        string    `json:"phone,omitempty"`
-	PasswordHash string    `json:"-"`
-	IsVerified   bool      `json:"is_verified"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	FullName        string    `json:"full_name"`
+	Email           string    `json:"email"`
+	Phone           string    `json:"phone,omitempty"`
+	PasswordHash    string    `json:"-"`
+	IsEmailVerified bool      `json:"is_email_verified"`
+	IsPhoneVerified bool      `json:"is_phone_verified"`
+	TokenVersion    int       `json:"token_version"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
+
 
 
 
@@ -67,4 +70,14 @@ type NewAccessTokenResponse struct{
 type LogoutRequest struct {
 	AccessToken string `json:"accesstoken"`
 	RefreshToken string `json:"refreshtoken"`
+}
+
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newpassword" binding:"required,min=8"`
 }
