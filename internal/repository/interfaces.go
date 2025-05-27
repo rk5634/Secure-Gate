@@ -13,5 +13,7 @@ type UserRepository interface {
 	UpdatePassword(userid string, newpassword string) (err error)
 	GetTokenVersionByID(id string) (int, error)
 	InvalidateAllTokensByID(id string) error
+	UpdatePhoneVerificationStatus(phone string, isVerified bool) error
+	GetUserByPhone(phone string) (*models.User, error) 
 	
 }

@@ -11,16 +11,18 @@ import (
 	"github.com/rkcuwork/auth-system/internal/models"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/utils"
+	"github.com/rkcuwork/auth-system/pkg/twilio"
 )
 
 type userService struct {
 	repo         repository.UserRepository
 	emailservice *emailverification.Service
 	tokenmanager *TokenManager
+	twilioService *twilio.TwilioService
 }
 
-func NewUserService(repo repository.UserRepository, emailservice *emailverification.Service, tokenmanager *TokenManager) UserService {
-	return &userService{repo: repo, emailservice: emailservice, tokenmanager: tokenmanager}
+func NewUserService(repo repository.UserRepository, emailservice *emailverification.Service, tokenmanager *TokenManager,twilioService *twilio.TwilioService) UserService {
+	return &userService{repo: repo, emailservice: emailservice, tokenmanager: tokenmanager,twilioService : twilioService}
 }
 
 func (s *userService) Register(ctx context.Context, input *models.User) error {

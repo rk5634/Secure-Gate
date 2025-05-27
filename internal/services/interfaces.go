@@ -15,6 +15,8 @@ type UserService interface {
 	Logout(req *models.LogoutRequest) (err error)
 	ForgotPasswordService(req *models.ForgotPasswordRequest) (err error)
 	ResetPasswordService(req models.ResetPasswordRequest) (err error)
+	SendOTPService(phonenumber string) error 
+	VerifyOTPService(phonenumber, otp string) error 
 }
 
 

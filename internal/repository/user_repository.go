@@ -146,3 +146,51 @@ func (r *userRepo) InvalidateAllTokensByID(id string) error {
 	return nil
 }
 
+
+
+func (r *userRepo) UpdatePhoneVerificationStatus(phone string, isVerified bool) error {
+	query := `UPDATE users SET is_phone_verified = $1 WHERE phone = $2`
+
+	_, err := db.Pool.Exec(context.Background(),query, isVerified, phone)
+	if err != nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:UpdatePhoneVerificationStatus: failed to update verification status: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+
+
+func (r *userRepo) GetUserByPhone( phone string) (*models.User, error) {
+	query := `
+		SELECT id, full_name, email, phone, password_hash, is_email_verified, is_phone_verified, token_version, created_at, updated_at
+		FROM users WHERE phone = $1
+	`
+	row := db.Pool.QueryRow(context.Background(), query, phone)
+
+	var user models.User
+	err := row.Scan(
+		&user.ID,
+		&user.FullName,
+		&user.Email,
+		&user.Phone,
+		&user.PasswordHash,
+		&user.IsEmailVerified,
+		&user.IsPhoneVerified,
+		&user.TokenVersion,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			fmt.Printf("auth-system:internal:repository:user_repository:GetUserByPhone: No user found with phone: %v\n", phone)
+			return nil, fmt.Errorf("user with phone %v not found", phone)
+		}
+		fmt.Printf("auth-system:internal:repository:user_repository:GetUserByPhone: Error fetching user by phone: %v\n", err)
+		return nil, err
+	}
+
+	return &user, nil
+}
+

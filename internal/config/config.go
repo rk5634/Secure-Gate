@@ -16,6 +16,9 @@ type Config struct {
 	JwtAudience string
 	SenderEmail string
 	BaseURL     string
+	TWILIO_ACCOUNT_SID string
+	TWILIO_AUTH_TOKEN    string
+	TWILIO_VERIFY_SERVICE_SID string
 }
 
 // LoadConfig loads environment variables from .env file and returns the Config struct
@@ -62,6 +65,23 @@ func LoadConfig() *Config {
 		log.Fatalf("auth-system:internal:config:config:LoadConfig():BASE_URL is not found")
 	}
 
+	twilioAccountSID := os.Getenv("TWILIO_ACCOUNT_SID")
+	if twilioAccountSID == "" {
+		log.Fatalf("auth-system:internal:config:config:LoadConfig():TWILIO_ACCOUNT_SID is not found")
+	}
+
+	twilioAuthToken := os.Getenv("TWILIO_AUTH_TOKEN")
+	if twilioAuthToken == "" {
+		log.Fatalf("auth-system:internal:config:config:LoadConfig():TWILIO_AUTH_TOKEN is not found")
+	}
+
+
+	twilioVerifyServiceSID := os.Getenv("TWILIO_VERIFY_SERVICE_SID")
+	if twilioVerifyServiceSID == "" {
+		log.Fatalf("auth-system:internal:config:config:LoadConfig():TWILIO_VERIFY_SERVICE_SID is not found")
+	}
+
+
 	return &Config{
 		Port:        port,
 		DbURL:       dbURL,
@@ -70,5 +90,9 @@ func LoadConfig() *Config {
 		JwtAudience: jwtAudience,
 		SenderEmail: senderEmail,
 		BaseURL:     baseURL,
+		TWILIO_ACCOUNT_SID: twilioAccountSID,
+		TWILIO_AUTH_TOKEN: twilioAuthToken,
+		TWILIO_VERIFY_SERVICE_SID: twilioVerifyServiceSID,
+		
 	}
 }

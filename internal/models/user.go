@@ -81,3 +81,14 @@ type ResetPasswordRequest struct {
 	Token       string `json:"token" binding:"required"`
 	NewPassword string `json:"newpassword" binding:"required,min=8"`
 }
+
+
+
+type SendOTPRequest struct {
+	PhoneNumber string `json:"phone" binding:"required"`
+}
+
+type VerifyOTPRequest struct {
+	PhoneNumber string `json:"phone" binding:"required"`
+	OTP   string `json:"otp" binding:"required"`
+}

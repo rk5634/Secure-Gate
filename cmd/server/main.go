@@ -10,10 +10,11 @@ import (
 	"github.com/rkcuwork/auth-system/internal/emailupdate"
 	"github.com/rkcuwork/auth-system/internal/emailverification"
 	"github.com/rkcuwork/auth-system/internal/handlers"
-	"github.com/rkcuwork/auth-system/internal/middleware"        
+	"github.com/rkcuwork/auth-system/internal/middleware"
 	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/services"
+	"github.com/rkcuwork/auth-system/pkg/twilio"
 )
 
 func main() {
@@ -48,7 +49,9 @@ func main() {
 	emailService := emailverification.NewService(emailRepo, emailTokenMgr, emailSender, cfg.BaseURL)
 	emailHandler := emailverification.NewHandler(emailService, repo)
 
-	authService := services.NewUserService(repo, emailService, tokenManager)
+	twilioservice := twilio.NewTwilioService(cfg.TWILIO_ACCOUNT_SID, cfg.TWILIO_AUTH_TOKEN, cfg.TWILIO_VERIFY_SERVICE_SID)
+
+	authService := services.NewUserService(repo, emailService, tokenManager, twilioservice)
 	authHandler := handlers.NewAuthHandler(authService)
 
 	emailUpdateRepo := emailupdate.NewRepository()
@@ -65,6 +68,8 @@ func main() {
 	r.POST("/logout", authHandler.LogoutHandler)
 	r.POST("/forgot-password", authHandler.ForgotPasswordHandler)
 	r.POST("/reset-password", authHandler.ResetPasswordHandler)
+	r.POST("/send-otp", authHandler.SendOTPHandler)
+	r.POST("/verify-otp", authHandler.VerifyOTPHandler)
 
 	// ✅ Protected routes using AuthMiddleware
 	protected := r.Group("/api")
