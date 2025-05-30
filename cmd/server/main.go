@@ -15,6 +15,7 @@ import (
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/services"
 	"github.com/rkcuwork/auth-system/pkg/twilio"
+	"github.com/rkcuwork/auth-system/internal/oauth"
 )
 
 func main() {
@@ -57,6 +58,7 @@ func main() {
 	emailUpdateRepo := emailupdate.NewRepository()
 	emailUpdateService := emailupdate.NewService(emailUpdateRepo, emailService)
 	emailUpdateHandler := emailupdate.NewHandler(emailUpdateService)
+	oauthHandler := oauth.NewOAuthHandler(tokenManager)
 
 	// Public routes
 	r.GET("/verify-email", emailHandler.VerifyEmailHandler)
@@ -70,6 +72,8 @@ func main() {
 	r.POST("/reset-password", authHandler.ResetPasswordHandler)
 	r.POST("/send-otp", authHandler.SendOTPHandler)
 	r.POST("/verify-otp", authHandler.VerifyOTPHandler)
+	r.GET("/oauth/google/login", oauthHandler.HandleGoogleLogin)
+    r.GET("/oauth/google/callback", oauthHandler.HandleGoogleCallback)
 
 	// ✅ Protected routes using AuthMiddleware
 	protected := r.Group("/api")

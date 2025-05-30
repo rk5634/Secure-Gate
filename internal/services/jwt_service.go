@@ -16,6 +16,7 @@ import (
 	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/utils"
+	"maps"
 )
 
 // GenerateJWT(userID int, email string) (string, error)
@@ -360,3 +361,32 @@ func (tm *TokenManager) CompareTokenVersion(userID string, tokenVersionFromToken
 
 	return true, nil // Token is valid
 }
+
+
+
+
+
+
+func(tm *TokenManager) GenerateJWT(claimsMap map[string]interface{}, expiryMinutes int) (string, error) {
+	// Create a new token object
+	claims := jwt.MapClaims{}
+
+	// Add standard claims
+	claims["exp"] = time.Now().Add(time.Minute * time.Duration(expiryMinutes)).Unix()
+	claims["iat"] = time.Now().Unix()
+
+	// Add custom claims
+	maps.Copy(claims, claimsMap)
+
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+
+	// Sign the token with the secret key
+	tokenString, err := token.SignedString(tm.privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
