@@ -1,45 +1,53 @@
 package middleware
 
 import (
-    "github.com/rkcuwork/auth-system/internal/services" // adjust import path
-    "net/http"
-    "strings"
+	"net/http"
+	"strings"
+	"log"
 
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
+	"github.com/rkcuwork/auth-system/internal/services" // adjust import path
 )
 
+// Define a file-level log prefix for the auth middleware
+const authMiddlewareLogPrefix = packageLogPrefix + "auth"
+
+// AuthMiddleware validates JWT access tokens and extracts user info into context.
 func AuthMiddleware(tokenManager *services.TokenManager) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        authHeader := c.GetHeader("Authorization")
-        if authHeader == "" {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
-            return
-        }
+	return func(c *gin.Context) {
+		const funcName = "AuthMiddleware:"
+		funcLogPrefix := authMiddlewareLogPrefix + funcName
 
-        parts := strings.Split(authHeader, " ")
-        if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization format"})
-            return
-        }
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			log.Printf("%s Missing Authorization header", funcLogPrefix)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
+			return
+		}
 
-        accessToken := parts[1]
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			log.Printf("%s Invalid Authorization format: %s", funcLogPrefix, authHeader)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization format"})
+			return
+		}
 
-        // ✅ Validate using your service function
-        isValid, claims, err := tokenManager.IsValidAccessToken(accessToken)
-        if err != nil || !isValid {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-            return
-        }
+		accessToken := parts[1]
 
-        // ✅ Extract userID and role and add to Gin context
-        userID, _ := claims["sub"].(string)
+		isValid, claims, err := tokenManager.IsValidAccessToken(accessToken)
+		if err != nil || !isValid {
+			log.Printf("%s Invalid access token: %v", funcLogPrefix, err)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+
+		userID, _ := claims["sub"].(string)
 		email, _ := claims["email"].(string)
-      
 
-        c.Set("userID", userID)
-        c.Set("email", email)
+		c.Set("userID", userID)
+		c.Set("email", email)
 
-
-        c.Next()
-    }
+		log.Printf("%s Access token validated for userID: %s", funcLogPrefix, userID)
+		c.Next()
+	}
 }

@@ -3,9 +3,8 @@ package oauth
 import (
 	"context"
 	"fmt"
-
+	"log"
 	"os"
-
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -14,6 +13,9 @@ import (
 	"github.com/rkcuwork/auth-system/internal/models"
 	"github.com/rkcuwork/auth-system/internal/services"
 )
+
+// Define file-level log prefix
+const googleOauthLogPrefix = packageLogPrefix + "oauth_google:"
 
 type GoogleOauthService struct {
 	OAuthConfig  *oauth2.Config
@@ -36,38 +38,39 @@ func NewGoogleOauthService(tokenManager *services.TokenManager) *GoogleOauthServ
 	}
 }
 
+// GoogleLogin handles Google OAuth login, user creation, and token generation.
+func (g *GoogleOauthService) GoogleLogin(user *models.User, fp *models.Fingerprint) (*models.LoginResponse, error) {
+	const funcName = "GoogleLogin:"
+	funcLogPrefix := googleOauthLogPrefix + funcName
 
+	// Create user if not exists
+	if err := g.TokenManager.Repo.CreateUser(context.Background(), user); err != nil {
+		log.Printf("%s Error creating user: %v", funcLogPrefix, err)
+		// proceed anyway to fetch user to handle possible duplication gracefully
+	}
 
-// Step 2: Handle Google callback
-func (g *GoogleOauthService) GoogleLogin(user *models.User, fp *models.Fingerprint)  (*models.LoginResponse,error) {
-	
-
-
-	// TODO: Check if user exists in DB; if not, create user with email, firstName, lastName
-	_ = g.TokenManager.Repo.CreateUser(context.Background(), user)
 	user, err := g.TokenManager.Repo.GetUserByEmail(context.Background(), user.Email)
 	if err != nil {
-		fmt.Printf("auth-system:internal:oauth:google:HandleGoogleCallback: Error fetching user by email: %v\n", err)
+		log.Printf("%s Error fetching user by email: %v", funcLogPrefix, err)
 		return nil, fmt.Errorf("failed to fetch user by email: %w", err)
 	}
 
-	deviceid := uuid.NewString()
-	accesstoken,refreshtoken,err := g.TokenManager.GenerateRefreshAndAccessToken(user,fp,deviceid)
-
-
+	deviceID := uuid.NewString()
+	accessToken, refreshToken, err := g.TokenManager.GenerateRefreshAndAccessToken(user, fp, deviceID)
 	if err != nil {
-		fmt.Printf("auth-system:internal:oauth:google:HandleGoogleCallback: Error generating tokens: %v\n", err)
+		log.Printf("%s Error generating tokens: %v", funcLogPrefix, err)
 		return nil, fmt.Errorf("error generating tokens: %w", err)
 	}
 
 	res := &models.LoginResponse{
-		AccessToken:  accesstoken,
-		RefreshToken: refreshtoken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		UserID:       user.ID,
 		Email:        user.Email,
 		Role:         "user",
-		DeviceID:     deviceid,
+		DeviceID:     deviceID,
 	}
 
+	log.Printf("%s Successful login for userID: %s, deviceID: %s", funcLogPrefix, user.ID, deviceID)
 	return res, nil
 }

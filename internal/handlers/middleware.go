@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,6 +9,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// middlewareLogPrefix defines the logging prefix specific to middleware components.
+const middlewareLogPrefix = packageLogPrefix + "middleware:"
+
+// rateLimitLuaScript implements a token bucket algorithm in Redis Lua script for rate limiting.
+// It manages tokens and refill timing to control request rates per key.
 const rateLimitLuaScript = `
 local key = KEYS[1]
 local max_tokens = tonumber(ARGV[1])
@@ -44,67 +48,76 @@ else
     redis.call("EXPIRE", key, refill_interval * max_tokens)
     return tokens
 end
-
 `
 
+// IPRateLimitMiddleware enforces rate limiting based on client IP addresses.
+// It uses a Redis-backed token bucket algorithm to control request rates per IP.
 func IPRateLimitMiddleware(redisClient *redis.Client, maxTokens int, refillInterval time.Duration) gin.HandlerFunc {
+	const funcName = "IPRateLimitMiddleware:"
+	funcLogPrefix := middlewareLogPrefix + funcName
+
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 		if ip == "" {
-			// fallback or block request if IP not found
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "cannot determine client IP"})
+			log.Printf("%s unable to determine client IP", funcLogPrefix)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "unable to determine client IP"})
 			return
 		}
 
-		key := fmt.Sprintf("rate_limit:ip:%s", ip)
+		key := "rate_limit:ip:" + ip
 		now := time.Now().Unix()
 
-		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key},
-			maxTokens, int(refillInterval.Seconds()), now).Int()
-
+		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key}, maxTokens, int(refillInterval.Seconds()), now).Int()
 		if err != nil {
-			log.Printf("Rate limit Redis error: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "rate limit error"})
+			log.Printf("%s Redis evaluation error: %v", funcLogPrefix, err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal rate limiting error"})
 			return
 		}
 
 		if result == -1 {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func AdvancedRateLimitMiddleware(redisClient *redis.Client, maxTokens int, refillInterval time.Duration) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Extract user ID and device ID from request
-		userID := c.GetHeader("X-User-ID")     // or from token
-		deviceID := c.GetHeader("X-Device-ID") // or from JSON body
-
-		if userID == "" || deviceID == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing user/device ID"})
-			return
-		}
-
-		key := fmt.Sprintf("rate_limit:%s:%s", userID, deviceID)
-		now := time.Now().Unix()
-
-		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key},
-			maxTokens, int(refillInterval.Seconds()), now).Int()
-
-		if err != nil {
-			log.Printf("Rate limit Redis error: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "rate limit error"})
-			return
-		}
-
-		if result == -1 {
+			log.Printf("%s rate limit exceeded for IP: %s", funcLogPrefix, ip)
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
 			return
 		}
 
+		log.Printf("%s allowed request for IP: %s, remaining tokens: %d", funcLogPrefix, ip, result)
+		c.Next()
+	}
+}
+
+// AdvancedRateLimitMiddleware enforces rate limiting using a composite key of user ID and device ID.
+// This middleware supports fine-grained control by distinguishing different user devices.
+func AdvancedRateLimitMiddleware(redisClient *redis.Client, maxTokens int, refillInterval time.Duration) gin.HandlerFunc {
+	const funcName = "AdvancedRateLimitMiddleware:"
+	funcLogPrefix := middlewareLogPrefix + funcName
+
+	return func(c *gin.Context) {
+		userID := c.GetHeader("X-User-ID")
+		deviceID := c.GetHeader("X-Device-ID")
+
+		if userID == "" || deviceID == "" {
+			log.Printf("%s missing required user or device identifier, userID: %s, deviceID: %s", funcLogPrefix, userID, deviceID)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing required user or device identifier"})
+			return
+		}
+
+		key := "rate_limit:" + userID + ":" + deviceID
+		now := time.Now().Unix()
+
+		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key}, maxTokens, int(refillInterval.Seconds()), now).Int()
+		if err != nil {
+			log.Printf("%s Redis evaluation error: %v", funcLogPrefix, err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal rate limiting error"})
+			return
+		}
+
+		if result == -1 {
+			log.Printf("%s rate limit exceeded for userID: %s deviceID: %s", funcLogPrefix, userID, deviceID)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+			return
+		}
+
+		log.Printf("%s allowed request for userID: %s deviceID: %s, remaining tokens: %d", funcLogPrefix, userID, deviceID, result)
 		c.Next()
 	}
 }
