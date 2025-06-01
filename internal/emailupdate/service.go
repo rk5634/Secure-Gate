@@ -1,0 +1,57 @@
+package emailupdate
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/rkcuwork/auth-system/internal/emailverification"
+)
+
+// serviceFileLogPrefix is the file-level prefix for all log messages in this file
+const serviceFileLogPrefix = packageLogPrefix+"service:"
+
+type Service struct {
+	repo         Repository
+	emailService *emailverification.Service // Reuse your existing verification email sender
+}
+
+func NewService(repo Repository, emailService *emailverification.Service) *Service {
+	return &Service{repo: repo, emailService: emailService}
+}
+
+func (s *Service) UpdateEmail(ctx context.Context, userID, newEmail string) (*UpdateEmailResponse, error) {
+	const funcName = "UpdateEmail:"
+	funcLogPrefix := serviceFileLogPrefix + funcName
+
+	resp := &UpdateEmailResponse{}
+
+	exists, err := s.repo.EmailExists(ctx, newEmail)
+	if err != nil {
+		fmt.Printf("%s error checking email existence: %v\n", funcLogPrefix, err)
+		resp.Status = "Error"
+		resp.Message = "could not check email existence"
+		return resp, fmt.Errorf("could not check email existence")
+	}
+	if exists {
+		fmt.Printf("%s email already in use: %s\n", funcLogPrefix, newEmail)
+		resp.Status = "Update Failed"
+		resp.Message = "New email already in use"
+		return resp, fmt.Errorf("email already in use")
+	}
+
+	err = s.repo.SetUnverifiedEmail(ctx, userID, newEmail)
+	if err != nil {
+		fmt.Printf("%s error setting new email: %v\n", funcLogPrefix, err)
+		resp.Status = "Error"
+		resp.Message = "Error setting new email"
+		return resp, fmt.Errorf("could not set new email")
+	}
+
+	go s.emailService.SendVerificationEmail(ctx, userID, newEmail)
+
+	resp.Status = "Success"
+	resp.Message = "New email updated and verification email sent"
+	resp.NewEmail = newEmail
+
+	return resp, nil
+}
