@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rkcuwork/auth-system/internal/config"
@@ -11,11 +12,11 @@ import (
 	"github.com/rkcuwork/auth-system/internal/emailverification"
 	"github.com/rkcuwork/auth-system/internal/handlers"
 	"github.com/rkcuwork/auth-system/internal/middleware"
+	"github.com/rkcuwork/auth-system/internal/oauth"
 	"github.com/rkcuwork/auth-system/internal/redis"
 	"github.com/rkcuwork/auth-system/internal/repository"
 	"github.com/rkcuwork/auth-system/internal/services"
 	"github.com/rkcuwork/auth-system/pkg/twilio"
-	"github.com/rkcuwork/auth-system/internal/oauth"
 )
 
 func main() {
@@ -26,6 +27,8 @@ func main() {
 	// Initialize DB and Redis
 	db.Init()
 	redisclient := redis.Init()
+
+	
 
 	// Gin router
 	r := gin.Default()
@@ -61,20 +64,44 @@ func main() {
 	googleservice := oauth.NewGoogleOauthService(tokenManager)
 	googleoauthHandler := oauth.NewGoogleOAuthHandler(googleservice)
 
-	// Public routes
-	r.GET("/verify-email", emailHandler.VerifyEmailHandler)
-	r.POST("/signup", authHandler.Register)
-	r.POST("/login", authHandler.Login)
-	r.POST("/resend-email-verification", emailHandler.SendVerificationEmailHandler)
-	r.PUT("/update-email", emailUpdateHandler.UpdateEmailHandler)
-	r.POST("/refresh", authHandler.RefreshTokenHandler)
-	r.POST("/logout", authHandler.LogoutHandler)
-	r.POST("/forgot-password", authHandler.ForgotPasswordHandler)
-	r.POST("/reset-password", authHandler.ResetPasswordHandler)
-	r.POST("/send-otp", authHandler.SendOTPHandler)
-	r.POST("/verify-otp", authHandler.VerifyOTPHandler)
-	r.GET("/oauth/google/login", googleoauthHandler.HandleGoogleLogin)
-    r.GET("/oauth/google/callback", googleoauthHandler.HandleGoogleCallback)
+
+
+
+
+	// Assume redisClient, maxTokens, refillInterval are already initialized, e.g.:
+	// maxTokens := 5
+	refillInterval := time.Minute
+
+	// IP rate limit middleware instance
+	ipRateLimit := handlers.IPRateLimitMiddleware(redisclient.Client, 10, refillInterval)
+
+	// Advanced rate limit middleware instance (usually stricter or per user/device)
+	advancedRateLimit := handlers.AdvancedRateLimitMiddleware(redisclient.Client, 10, refillInterval)
+
+	// Public routes with IP-based rate limiting (general limit per IP)
+	public := r.Group("/", ipRateLimit)
+	{
+		public.GET("/verify-email", emailHandler.VerifyEmailHandler)
+		public.POST("/signup", authHandler.Register)
+		public.POST("/login", authHandler.Login)
+		public.POST("/resend-email-verification", emailHandler.SendVerificationEmailHandler)
+		public.PUT("/update-email", emailUpdateHandler.UpdateEmailHandler)
+		public.POST("/forgot-password", authHandler.ForgotPasswordHandler)
+		public.POST("/reset-password", authHandler.ResetPasswordHandler)
+		public.POST("/send-otp", authHandler.SendOTPHandler)
+		public.POST("/verify-otp", authHandler.VerifyOTPHandler)
+		public.GET("/oauth/google/login", googleoauthHandler.HandleGoogleLogin)
+		public.GET("/oauth/google/callback", googleoauthHandler.HandleGoogleCallback)
+	}
+
+
+	// Group routes that require Advanced Rate Limiting
+	advancedRateLimited := r.Group("/")
+	advancedRateLimited.Use(advancedRateLimit)
+	{
+		advancedRateLimited.POST("/refresh", authHandler.RefreshTokenHandler)
+		advancedRateLimited.POST("/logout", authHandler.LogoutHandler)
+	}
 
 	// ✅ Protected routes using AuthMiddleware
 	protected := r.Group("/api")

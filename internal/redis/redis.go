@@ -16,7 +16,7 @@ import (
 
 type RedisClient struct {
 	ctx    context.Context
-	client *redis.Client
+	Client *redis.Client
 }
 
 
@@ -25,13 +25,13 @@ type RedisClient struct {
 func NewRedisService(ctx context.Context, client *redis.Client) *RedisClient  {
 	return &RedisClient{
 		ctx:    ctx,
-		client: client,
+		Client:client,
 	}
 }
 
 // Implement Set
 func (r *RedisClient) Set(key string, value interface{},expiration time.Duration) error {
-	err := r.client.Set(r.ctx, key, value, expiration).Err()
+	err := r.Client.Set(r.ctx, key, value, expiration).Err()
 	if err != nil {
 		log.Printf("auth-system:internal:redis:redis:Set: failed to set key '%s': %v", key, err)
 		return fmt.Errorf("failed to set key '%s': %w", key, err)
@@ -42,7 +42,7 @@ func (r *RedisClient) Set(key string, value interface{},expiration time.Duration
 
 // Implement Get
 func (r *RedisClient) Get(key string) (string, error) {
-	val, err := r.client.Get(r.ctx, key).Result()
+	val, err := r.Client.Get(r.ctx, key).Result()
 	if err == redis.Nil {
 		log.Printf("auth-system:internal:redis:redis:Get: key '%s' does not exist", key)
 		return "", nil
@@ -57,7 +57,7 @@ func (r *RedisClient) Get(key string) (string, error) {
 // Implement Delete
 
 func (r *RedisClient) VerifyKey(key string) (string, error) {
-	val, err := r.client.Get(r.ctx, key).Result()
+	val, err := r.Client.Get(r.ctx, key).Result()
 	if err == redis.Nil {
 		log.Printf("auth-system:internal:redis:redis:VerifyKey: key '%s' does not exist", key)
 		return "", nil
@@ -103,7 +103,7 @@ func (r *RedisClient) VerifyRefreshTokenJTI(jti string, tokenUserID string) erro
 
 // Delete removes a key from Redis
 func (r *RedisClient) DeleteKey(key string) error {
-	err := r.client.Del(r.ctx, key).Err()
+	err := r.Client.Del(r.ctx, key).Err()
 	if err != nil {
 		log.Printf("auth-system:internal:redis:redis:Delete: failed to delete key '%s': %v", key, err)
 		return fmt.Errorf("failed to delete key '%s': %w", key, err)
@@ -122,7 +122,7 @@ func (r *RedisClient) BlocklistTokenJTI(jti string, ttl time.Duration, userID st
 	key := "blocklist:" + jti
 	value := fmt.Sprintf("user:%s reason:%s", userID, reason)
 
-	err := r.client.Set(r.ctx, key, value, ttl).Err()
+	err := r.Client.Set(r.ctx, key, value, ttl).Err()
 	if err != nil {
 		log.Printf("auth-system:internal:redis:redis:BlocklistTokenJTI: failed to blocklist jti '%s': %v", jti, err)
 		return fmt.Errorf("failed to blocklist token jti '%s': %w", jti, err)
@@ -140,7 +140,7 @@ func (r *RedisClient) VerifyAccessTokenJTINotBlacklisted(jti string) error {
 
 	key := "blocklist:" + jti
 
-	exists, err := r.client.Exists(r.ctx, key).Result()
+	exists, err := r.Client.Exists(r.ctx, key).Result()
 	if err != nil {
 		log.Printf("auth-system:redis:VerifyAccessTokenNotBlacklisted: error checking key '%s': %v", key, err)
 		return fmt.Errorf("error verifying token blocklist status: %w", err)

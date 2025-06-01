@@ -169,6 +169,7 @@ func (tm *TokenManager) ParseAndValidateToken(tokenStr string) (jwt.MapClaims, e
 	)
 
 	if err != nil {
+		fmt.Printf(tokenStr)
 		fmt.Println("auth-system:internal:services:jwt_service:ParseAndValidateToken: Error parsing token:", err)
 		return nil, err
 	}
