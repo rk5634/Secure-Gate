@@ -44,6 +44,10 @@ func (s *userService) VerifyOTPService(phonenumber, otp string) error {
 
 	// Update user status in the database
 	err = s.repo.UpdatePhoneVerificationStatus(phonenumber, true)
+	if err != nil {
+		fmt.Printf("auth-system:internal:services:phone_service:VerifyOTPService: error updating phone verification status: %v\n", err)
+		return err
+	}
 	return nil
 }
 

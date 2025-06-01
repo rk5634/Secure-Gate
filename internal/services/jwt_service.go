@@ -94,7 +94,7 @@ func (tm *TokenManager) GenerateRefreshAndAccessToken(user *models.User, fp *mod
 	signedkey := tm.privateKey
 	if signedkey == nil {
 		fmt.Println("auth-system:internal:services:jwt_service:GenerateRefreshAndAccessToken: Error loading private key:", err)
-		return "", "", fmt.Errorf("Error generating token")
+		return "", "", fmt.Errorf("error generating token")
 	}
 
 	// Create access token (short-lived) with token_version claim
@@ -169,7 +169,7 @@ func (tm *TokenManager) ParseAndValidateToken(tokenStr string) (jwt.MapClaims, e
 	)
 
 	if err != nil {
-		fmt.Printf(tokenStr)
+
 		fmt.Println("auth-system:internal:services:jwt_service:ParseAndValidateToken: Error parsing token:", err)
 		return nil, err
 	}
