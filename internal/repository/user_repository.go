@@ -17,6 +17,13 @@ func NewUserRepository() UserRepository {
 }
 
 func (r *userRepo) CreateUser(ctx context.Context, user *models.User) error {
+	_, err := r.GetUserByEmail(ctx, user.Email)
+
+	if err == nil {
+		fmt.Printf("auth-system:internal:repository:user_repository:CreateUser: User with email %s already exists\n", user.Email)
+		return fmt.Errorf("user with email %s already exists", user.Email)
+	}
+
 	query := `
 		INSERT INTO users (full_name, email, phone, password_hash, is_email_verified, is_phone_verified, token_version, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -25,7 +32,7 @@ func (r *userRepo) CreateUser(ctx context.Context, user *models.User) error {
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
-	_, err := db.Pool.Exec(ctx, query,
+	_, err = db.Pool.Exec(ctx, query,
 		user.FullName,
 		user.Email,
 		user.Phone,

@@ -31,7 +31,7 @@ type TokenManager struct {
 	privateKey  *rsa.PrivateKey
 	publicKey   *rsa.PublicKey
 	Redisclient *redis.RedisClient
-	repo        repository.UserRepository
+	Repo        repository.UserRepository
 }
 
 func NewTokenManager(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey, redisclient *redis.RedisClient, repo repository.UserRepository) *TokenManager {
@@ -39,7 +39,7 @@ func NewTokenManager(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey, redis
 		privateKey:  privateKey,
 		publicKey:   publicKey,
 		Redisclient: redisclient,
-		repo:        repo,
+		Repo:        repo,
 	}
 }
 
@@ -82,7 +82,7 @@ func (tm *TokenManager) GenerateRefreshAndAccessToken(user *models.User, fp *mod
 	fmt.Printf("auth-system:internal:services:jwt_service:GenerateRefreshAndAccessToken:deviceid: %s\n", deviceid)
 
 	// Fetch current token version from DB using repo
-	tokenVersionInDB, err := tm.repo.GetTokenVersionByID(user.ID)
+	tokenVersionInDB, err := tm.Repo.GetTokenVersionByID(user.ID)
 	if err != nil {
 		fmt.Printf("auth-system:internal:services:jwt_service:GenerateRefreshAndAccessToken: Error fetching token version: %v\n", err)
 		return "", "", fmt.Errorf("failed to get token version: %w", err)
@@ -302,7 +302,7 @@ func (tm *TokenManager) IsValidAccessToken(accesstoken string) (isvalid bool, cl
 }
 
 func (tm *TokenManager) GeneratePasswordResetToken(userID string) (string, error) {
-	tokenVersionInDB, err := tm.repo.GetTokenVersionByID(userID)
+	tokenVersionInDB, err := tm.Repo.GetTokenVersionByID(userID)
 	if err != nil {
 		fmt.Printf("auth-system:internal:services:jwt_service:GeneratePasswordResetToken: Error fetching token version: %v\n", err)
 		return "", fmt.Errorf("failed to get token version: %w", err)
@@ -348,7 +348,7 @@ func (tm *TokenManager) VerifyResetToken(tokenString string) (string, error) {
 
 func (tm *TokenManager) CompareTokenVersion(userID string, tokenVersionFromToken int) (bool, error) {
 	// Get the current token_version from DB
-	tokenVersionInDB, err := tm.repo.GetTokenVersionByID(userID)
+	tokenVersionInDB, err := tm.Repo.GetTokenVersionByID(userID)
 	if err != nil {
 		fmt.Printf("auth-system:internal:repository:user_repository:CompareTokenVersion: Error fetching token version: %v\n", err)
 		return false, err

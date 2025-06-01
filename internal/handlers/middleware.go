@@ -1,43 +1,110 @@
 package handlers
 
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"time"
 
-// import (
-// 	"net/http"
-// 	"strings"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+)
 
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/rkcuwork/auth-system/internal/services"
-// )
+const rateLimitLuaScript = `
+local key = KEYS[1]
+local max_tokens = tonumber(ARGV[1])
+local refill_interval = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
 
-// func AuthMiddleware(jwtService services.JWTService) gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		authHeader := c.GetHeader("Authorization")
-// 		if authHeader == "" {
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is missing"})
-// 			return
-// 		}
+local bucket = redis.call("HMGET", key, "tokens", "timestamp")
+local tokens = tonumber(bucket[1])
+local last_refill = tonumber(bucket[2])
 
-// 		// Expecting format: "Bearer <token>"
-// 		parts := strings.Split(authHeader, " ")
-// 		if len(parts) != 2 || parts[0] != "Bearer" {
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
-// 			return
-// 		}
+if tokens == nil then
+    tokens = max_tokens
+    last_refill = now
+end
 
-// 		tokenStr := parts[1]
+if last_refill == nil then
+    last_refill = now
+end
 
-// 		// Validate the token
-// 		claims, err := jwtService.ValidateToken(tokenStr)
-// 		if err != nil {
-// 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-// 			return
-// 		}
+local delta = math.max(0, now - last_refill)
+local refill = math.floor(delta / refill_interval)
+if refill > 0 then
+    tokens = math.min(max_tokens, tokens + refill)
+    last_refill = last_refill + refill * refill_interval
+end
 
-// 		// You can now store claims (like user ID or email) in context
-// 		c.Set("user_id", claims.UserID)
-// 		c.Set("email", claims.Email)
+if tokens <= 0 then
+    return -1
+else
+    tokens = tokens - 1
+    redis.call("HSET", key, "tokens", tokens, "timestamp", last_refill)
+    redis.call("EXPIRE", key, refill_interval * max_tokens)
+    return tokens
+end
 
-// 		// Continue to next handler
-// 		c.Next()
-// 	}
-// }
+`
+
+func IPRateLimitMiddleware(redisClient *redis.Client, maxTokens int, refillInterval time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if ip == "" {
+			// fallback or block request if IP not found
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "cannot determine client IP"})
+			return
+		}
+
+		key := fmt.Sprintf("rate_limit:ip:%s", ip)
+		now := time.Now().Unix()
+
+		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key},
+			maxTokens, int(refillInterval.Seconds()), now).Int()
+
+		if err != nil {
+			log.Printf("Rate limit Redis error: %v", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "rate limit error"})
+			return
+		}
+
+		if result == -1 {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func AdvancedRateLimitMiddleware(redisClient *redis.Client, maxTokens int, refillInterval time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Extract user ID and device ID from request
+		userID := c.GetHeader("X-User-ID")     // or from token
+		deviceID := c.GetHeader("X-Device-ID") // or from JSON body
+
+		if userID == "" || deviceID == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing user/device ID"})
+			return
+		}
+
+		key := fmt.Sprintf("rate_limit:%s:%s", userID, deviceID)
+		now := time.Now().Unix()
+
+		result, err := redisClient.Eval(c, rateLimitLuaScript, []string{key},
+			maxTokens, int(refillInterval.Seconds()), now).Int()
+
+		if err != nil {
+			log.Printf("Rate limit Redis error: %v", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "rate limit error"})
+			return
+		}
+
+		if result == -1 {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+			return
+		}
+
+		c.Next()
+	}
+}

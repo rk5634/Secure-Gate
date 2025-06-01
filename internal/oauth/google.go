@@ -2,95 +2,72 @@ package oauth
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+
 	"os"
 
-	"github.com/gin-gonic/gin"
+
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/rkcuwork/auth-system/internal/services" // Adjust as needed
+	"github.com/rkcuwork/auth-system/internal/models"
+	"github.com/rkcuwork/auth-system/internal/services"
 )
 
-type OAuthHandler struct {
+type GoogleOauthService struct {
 	OAuthConfig  *oauth2.Config
 	TokenManager *services.TokenManager
 }
 
-func NewOAuthHandler(tokenManager *services.TokenManager) *OAuthHandler {
-	return &OAuthHandler{
+func NewGoogleOauthService(tokenManager *services.TokenManager) *GoogleOauthService {
+	return &GoogleOauthService{
 		OAuthConfig: &oauth2.Config{
 			RedirectURL:  "http://localhost:8080/oauth/google/callback",
 			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email"},
-			Endpoint:     google.Endpoint,
+			Scopes: []string{
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+			Endpoint: google.Endpoint,
 		},
 		TokenManager: tokenManager,
 	}
 }
 
-// Redirect to Google's OAuth consent screen
-func (h *OAuthHandler) HandleGoogleLogin(c *gin.Context) {
-	state := "random" // TODO: Generate and store securely (e.g., Redis/session)
-	url := h.OAuthConfig.AuthCodeURL(state)
-	c.Redirect(302, url)
-}
 
-// Handle Google OAuth callback
-func (h *OAuthHandler) HandleGoogleCallback(c *gin.Context) {
-	code := c.Query("code")
-	if code == "" {
-		c.JSON(400, gin.H{"error": "Code not provided"})
-		return
-	}
 
-	token, err := h.OAuthConfig.Exchange(context.Background(), code)
-	if err != nil {
-		c.JSON(400, gin.H{"error": "Failed to exchange token"})
-		return
-	}
-
-	client := h.OAuthConfig.Client(context.Background(), token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
-	if err != nil {
-		c.JSON(400, gin.H{"error": "Failed to get user info"})
-		return
-	}
-	defer resp.Body.Close()
-
-	var userData map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&userData); err != nil {
-		c.JSON(500, gin.H{"error": "Invalid user data"})
-		return
-	}
-
-	email, ok := userData["email"].(string)
-	if !ok || email == "" {
-		c.JSON(500, gin.H{"error": "Email not found"})
-		return
-	}
-
+// Step 2: Handle Google callback
+func (g *GoogleOauthService) GoogleLogin(user *models.User, fp *models.Fingerprint)  (*models.LoginResponse,error) {
 	
 
-	// TODO: Check if user exists in DB, else create new user.
 
-	// Generate JWT
-	claims := map[string]interface{}{
-		"email": email,
-		"sub":   email, // sub can act as a unique subject identifier
-	}
-	jwtToken, err := h.TokenManager.GenerateJWT(claims, 15)
+	// TODO: Check if user exists in DB; if not, create user with email, firstName, lastName
+	_ = g.TokenManager.Repo.CreateUser(context.Background(), user)
+	user, err := g.TokenManager.Repo.GetUserByEmail(context.Background(), user.Email)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to generate JWT"})
-		return
+		fmt.Printf("auth-system:internal:oauth:google:HandleGoogleCallback: Error fetching user by email: %v\n", err)
+		return nil, fmt.Errorf("failed to fetch user by email: %w", err)
 	}
 
-	// Set JWT in a cookie (or respond with JSON, if preferred)
-	c.SetCookie("token", jwtToken, 900, "/", "localhost", false, true) // 900 seconds = 15 min
-	c.JSON(200, gin.H{
-		"message": "Login successful",
-		"token":   jwtToken,
-		"email":   email,
-	})
+	deviceid := uuid.NewString()
+	accesstoken,refreshtoken,err := g.TokenManager.GenerateRefreshAndAccessToken(user,fp,deviceid)
+
+
+	if err != nil {
+		fmt.Printf("auth-system:internal:oauth:google:HandleGoogleCallback: Error generating tokens: %v\n", err)
+		return nil, fmt.Errorf("error generating tokens: %w", err)
+	}
+
+	res := &models.LoginResponse{
+		AccessToken:  accesstoken,
+		RefreshToken: refreshtoken,
+		UserID:       user.ID,
+		Email:        user.Email,
+		Role:         "user",
+		DeviceID:     deviceid,
+	}
+
+	return res, nil
 }
