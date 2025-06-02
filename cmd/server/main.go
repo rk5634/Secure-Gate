@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -24,6 +25,7 @@ func main() {
 
 	// Initialize DB and Redis
 	db.Init(cfg)
+	fmt.Printf("connecting to redis with url: %s\n", cfg.RedisAddress)
 	redisclient := redis.Init(cfg)
 
 	
