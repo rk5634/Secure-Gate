@@ -40,12 +40,12 @@ func main() {
 
 	// Initialize services
 	repo := repository.NewUserRepository()
-	privateKey, err := services.LoadPrivateKey()
+	privateKey, err := services.LoadPrivateKeyFromString(cfg.PrivateKey)
 	if err != nil {
 		log.Fatalf("Failed to load private key: %v", err)
 	}
 
-	publicKey, err := services.LoadPublicKey()
+	publicKey, err := services.LoadPublicKeyFromString(cfg.PublicKey)
 	if err != nil {
 		log.Fatalf("Failed to load public key: %v", err)
 	}

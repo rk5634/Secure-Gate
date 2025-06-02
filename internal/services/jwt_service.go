@@ -4,7 +4,7 @@ import (
 
 	"errors"
 	"fmt"
-	"os"
+	
 	"time"
 
 	"crypto/rsa"
@@ -44,38 +44,23 @@ func NewTokenManager(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey, redis
 }
 
 // Load RSA public key for signing
-func LoadPublicKey() (*rsa.PublicKey, error) {
-	keyData, err := os.ReadFile("public.key")
+// LoadPublicKeyFromString parses an RSA public key from a PEM-formatted string.
+func LoadPublicKeyFromString(publicKeyPEM string) (*rsa.PublicKey, error) {
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKeyPEM))
 	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:LoadPublicKey: Error reading public key file:", err)
-		return nil, fmt.Errorf("failed to read public key file: %w", err)
-	}
-
-	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
-	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:LoadPublicKey: Error parsing public key:", err)
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPublicKeyFromString: Error parsing public key:", err)
 		return nil, fmt.Errorf("failed to parse RSA public key: %w", err)
 	}
-
 	return publicKey, nil
 }
 
 // Load RSA private key for signing
-func LoadPrivateKey() (*rsa.PrivateKey, error) {
-
-	keyData, err := os.ReadFile("private.key")
+func LoadPrivateKeyFromString(privateKeyPEM string) (*rsa.PrivateKey, error) {
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPEM))
 	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:LoadPrivateKey: Error reading private key file:", err)
-		return nil, fmt.Errorf("failed to read private key file: %w", err)
-	}
-
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
-	if err != nil {
-		fmt.Println("auth-system:internal:services:jwt_service:LoadPrivateKey: Error loading private key:", err)
+		fmt.Println("auth-system:internal:services:jwt_service:LoadPrivateKeyFromString: Error parsing private key:", err)
 		return nil, fmt.Errorf("failed to parse RSA private key: %w", err)
 	}
-
-
 	return privateKey, nil
 }
 
