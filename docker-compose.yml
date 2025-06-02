@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    env_file:
-      - .env
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +25,6 @@ services:
         condition: service_healthy
     volumes:
       - ./migrations:/migrations
-    env_file:
-      - .env
     command: [
       "-path", "/migrations",
       "-database", "${DB_URL}",
@@ -50,8 +46,6 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    env_file:
-      - .env
     ports:
       - "8080:8080"
     restart: on-failure
@@ -66,8 +60,6 @@ services:
   redis:
     image: redis:7
     command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
-    env_file:
-      - .env
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
       - redis-data:/data
