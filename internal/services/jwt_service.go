@@ -75,6 +75,7 @@ func LoadPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to parse RSA private key: %w", err)
 	}
 
+
 	return privateKey, nil
 }
 
@@ -120,9 +121,9 @@ func (tm *TokenManager) GenerateRefreshAndAccessToken(user *models.User, fp *mod
 	// Create refresh token (long-lived, minimal claims) with token_version claim
 	exp := now.Add(7 * 24 * time.Hour)
 	jti := uuid.NewString()
-	fmt.Printf("jti--->: %s\n", jti)
+
 	fingerprint := fp.UserAgent + fp.AcceptLanguage + fp.AcceptEncoding + deviceid
-	fmt.Printf("auth-system:internal:services:jwt_service:GenerateRefreshAndAccessToken:fingerprint: %s\n", fingerprint)
+
 	fingerprinthash := utils.Hash(fingerprint)
 	refreshClaims := jwt.MapClaims{
 		"sub":           user.ID,
@@ -247,7 +248,7 @@ func (tm *TokenManager) IsValidRefreshTokenRequest(req *models.NewAccessTokenReq
 	}
 
 	currentfingerprint := fp.UserAgent + fp.AcceptLanguage + fp.AcceptEncoding + deviceid
-	fmt.Printf("auth-system:internal:services:jwt_service:IsValidRefreshTokenRequest:fingerprint: %s\n", currentfingerprint)
+
 	if storedfingerprint, ok := claims["fingerprint"].(string); !ok || !utils.MatchHash(currentfingerprint, storedfingerprint) {
 		fmt.Printf("auth-system:internal:services:jwt_service:IsValidRefreshTokenRequest: Error: invalid fingerprint\n")
 		return false, userid, errors.New("invalid fingerprint")

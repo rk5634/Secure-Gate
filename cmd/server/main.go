@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
-	fmt.Printf("Loaded Config: %+v\n", cfg)
 
 	// Initialize DB and Redis
 	db.Init()
@@ -40,8 +38,16 @@ func main() {
 
 	// Initialize services
 	repo := repository.NewUserRepository()
-	privateKey, _ := services.LoadPrivateKey()
-	publicKey, _ := services.LoadPublicKey()
+	privateKey, err := services.LoadPrivateKey()
+	if err != nil {
+		log.Fatalf("Failed to load private key: %v", err)
+	}
+
+	publicKey, err := services.LoadPublicKey()
+	if err != nil {
+		log.Fatalf("Failed to load public key: %v", err)
+	}
+	
 	tokenManager := services.NewTokenManager(privateKey, publicKey, redisclient,repo)
 
 	emailRepo := emailverification.NewRepository()

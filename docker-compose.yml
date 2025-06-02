@@ -5,25 +5,28 @@ services:
     image: postgres:15
     restart: always
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     env_file:
       - .env
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
 
   migrate:
     image: migrate/migrate
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./migrations:/migrations
-    # environment:
-    #   - DATABASE_URL=${DB_URL}
     env_file:
       - .env
     command: [
@@ -32,8 +35,9 @@ services:
       "up"
     ]
     restart: on-failure
+    networks:
+      - internal
 
-  # Production profile
   auth-app:
     profiles: ["prod"]
     build:
@@ -41,32 +45,23 @@ services:
       dockerfile: Dockerfile
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       migrate:
-        condition: service_started
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     env_file:
       - .env
     ports:
       - "8080:8080"
-
-  # Development profile with hot reload
-  auth-app-dev:
-    profiles: ["dev"]
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    volumes:
-      - .:/app
-    depends_on:
-      - db
-      - migrate
-      - redis
-    env_file:
-      - .env
-    ports:
-      - "8080:8080"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - internal
 
   redis:
     image: redis:7
@@ -76,15 +71,21 @@ services:
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
       - redis-data:/data
-    # Do NOT expose Redis port to host machine
-    ports: 
-      - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 2s
-      timeout: 1s
-      retries: 10
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+    networks:
+      - internal
+    # DO NOT expose redis to host
+    # ports: []
 
 volumes:
   postgres-data:
   redis-data:
+
+networks:
+  internal:
+    driver: bridge

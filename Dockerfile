@@ -1,28 +1,30 @@
-# syntax=docker/dockerfile:1
-
-# Stage 1 - Build the Go binary
+# Stage 1 - Build
 FROM golang:1.24 AS builder
-WORKDIR /app
 
-# Copy go mod and sum files
+WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
+RUN go build -ldflags="-s -w" -o server ./cmd/server
 
-# Build the app
-RUN go build -o server ./cmd/server
-
-# Stage 2 - Use updated Debian with newer GLIBC (2.36)
+# Stage 2 - Production image
 FROM debian:bookworm-slim
 
 WORKDIR /app
+
+# Install CA certs
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -r -u 10001 -m appuser
+
+# Copy only necessary files
 COPY --from=builder /app/server .
-COPY --from=builder /app/.env .env
+COPY --from=builder /app/private.key private.key
+COPY --from=builder /app/public.key public.key
 
-# Expose port
+USER appuser
+
 EXPOSE 8080
-
-# Run the binary
 ENTRYPOINT ["./server"]
