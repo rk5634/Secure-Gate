@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -77,6 +78,7 @@ func LoadConfig() *Config {
 
 	get := func(key string) string {
 		val, ok := secrets[key]
+		fmt.Printf("Checking secret key: %s, value: %s\n", key, val)
 		if !ok || val == "" {
 			log.Fatalf("%s Missing required secret key: %s", logPrefix, key)
 		}
