@@ -52,3 +52,6 @@ testdata/
 
 # Notes
 notes/
+
+# base64 encoded files
+.b64
