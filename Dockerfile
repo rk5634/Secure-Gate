@@ -21,8 +21,8 @@ RUN useradd -r -u 10001 -m appuser
 
 # Copy only necessary files
 COPY --from=builder /app/server .
-COPY --from=builder /app/private.key private.key
-COPY --from=builder /app/public.key public.key
+# COPY --from=builder /app/private.key private.key
+# COPY --from=builder /app/public.key public.key
 
 USER appuser
 
