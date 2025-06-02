@@ -2,9 +2,11 @@ package config
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -82,6 +84,15 @@ func LoadConfig() *Config {
 		if !ok || val == "" {
 			log.Fatalf("%s Missing required secret key: %s", logPrefix, key)
 		}
+
+		// Convert `\n` to actual newlines for PEM keys
+		if key == "PRIVATE_KEY" || key == "PUBLIC_KEY" {
+			decodedBytes, err := base64.StdEncoding.DecodeString(val)
+			if err != nil {
+				log.Fatalf("Failed to decode base64 for key %s: %v", key, err)
+			}
+			val = string(decodedBytes)
+		}
 		return val
 	}
 
@@ -116,4 +127,10 @@ func LoadConfig() *Config {
 		PrivateKey:             get("PRIVATE_KEY"),
 		PublicKey:              get("PUBLIC_KEY"),
 	}
+}
+
+
+
+func convertEscapedNewlines(s string) string {
+	return strings.ReplaceAll(s, `\n`, "\n")
 }
