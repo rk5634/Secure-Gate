@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -ldflags="-s -w" -o server ./cmd/server
+RUN go build -v -ldflags="-s -w" -o server ./cmd/server
 
 # Stage 2 - Production image
 FROM debian:bookworm-slim
