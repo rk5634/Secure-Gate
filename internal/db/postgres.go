@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rkcuwork/auth-system/internal/config"
 )
 
 // Pool is the global PostgreSQL connection pool instance used throughout the application.
@@ -21,13 +21,13 @@ const logPrefix = "auth-system:internal:db:postgres:Init():"
 // - Parse the database configuration
 // - Establish the connection pool
 // - Verify the connection by pinging the database
-func Init() {
+func Init(cfg *config.Config) {
 	// Create a context with timeout to avoid hanging during connection attempts
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Retrieve the database URL from environment variables
-	dbURL := os.Getenv("DB_URL")
+	dbURL := cfg.DbURL
 	if dbURL == "" {
 		log.Fatalf("%s Environment variable DB_URL is not set", logPrefix)
 	}

@@ -23,8 +23,8 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Initialize DB and Redis
-	db.Init()
-	redisclient := redis.Init()
+	db.Init(cfg)
+	redisclient := redis.Init(cfg)
 
 	
 

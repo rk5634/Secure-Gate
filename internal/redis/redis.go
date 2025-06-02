@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/rkcuwork/auth-system/internal/config"
 )
 
 // file-level log prefix for redis.go file
@@ -181,16 +181,16 @@ func (r *RedisClient) RemoveRefreshTokenJTI(userID string) error {
 	return nil
 }
 
-func Init() *RedisClient {
+func Init(cfg *config.Config) *RedisClient {
 	const funcName = "Init:"
 	funcLogPrefix := redisFileLogPrefix + funcName
 
-	addr := os.Getenv("REDIS_ADDRESS")
+	addr := cfg.RedisAddress
 	if addr == "" {
 		log.Fatalf("%s REDIS_ADDRESS environment variable not set", funcLogPrefix)
 	}
 
-	password := os.Getenv("REDIS_PASSWORD")
+	password := cfg.RedisPassword
 	if password == "" {
 		log.Printf("%s REDIS_PASSWORD not set, proceeding without authentication", funcLogPrefix)
 	}
