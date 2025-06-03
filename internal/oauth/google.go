@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	"github.com/rkcuwork/auth-system/internal/config"
 	"github.com/rkcuwork/auth-system/internal/models"
 	"github.com/rkcuwork/auth-system/internal/services"
 )
@@ -22,12 +22,12 @@ type GoogleOauthService struct {
 	TokenManager *services.TokenManager
 }
 
-func NewGoogleOauthService(tokenManager *services.TokenManager) *GoogleOauthService {
+func NewGoogleOauthService(cfg *config.Config,tokenManager *services.TokenManager) *GoogleOauthService {
 	return &GoogleOauthService{
 		OAuthConfig: &oauth2.Config{
 			RedirectURL:  "http://localhost:8080/oauth/google/callback",
-			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+			ClientID:     cfg.GoogleClientID,
+			ClientSecret: cfg.GoogleClientSecret,
 			Scopes: []string{
 				"https://www.googleapis.com/auth/userinfo.email",
 				"https://www.googleapis.com/auth/userinfo.profile",

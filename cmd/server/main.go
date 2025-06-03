@@ -69,7 +69,7 @@ func main() {
 	emailUpdateRepo := emailupdate.NewRepository()
 	emailUpdateService := emailupdate.NewService(emailUpdateRepo, emailService)
 	emailUpdateHandler := emailupdate.NewHandler(emailUpdateService)
-	googleservice := oauth.NewGoogleOauthService(tokenManager)
+	googleservice := oauth.NewGoogleOauthService(cfg,tokenManager)
 	googleoauthHandler := oauth.NewGoogleOAuthHandler(googleservice)
 
 
