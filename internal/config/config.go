@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
+
 	"log"
 	"strings"
 
@@ -80,7 +80,6 @@ func LoadConfig() *Config {
 
 	get := func(key string) string {
 		val, ok := secrets[key]
-		fmt.Printf("Checking secret key: %s, value: %s\n", key, val)
 		if !ok || val == "" {
 			log.Fatalf("%s Missing required secret key: %s", logPrefix, key)
 		}
