@@ -33,6 +33,8 @@ func main() {
 	// Gin router
 	r := gin.Default()
 
+	r.Use(handlers.CORSMiddleware())
+
 	// Test route
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Hi prod, Auth System is up and running!"})
