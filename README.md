@@ -50,7 +50,7 @@ Uses **Redis** to strictly limit request rates.
 ### Asynchronous Communication (Email/SMS)
 -   Integrates with **AWS SES** and **Twilio** via interfaces, allowing for easy mocking during tests or swapping providers (e.g., swapping SES for SendGrid) without changing core logic.
 
-## � System Workflows
+## System Workflows
 
 ### 1. User Registration & Verification
 1.  **User** submits `POST /signup`.
